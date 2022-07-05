@@ -1,0 +1,99 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- master
+
+variables:
+  vmImageName: 'ubuntu-latest'
+  demoRG: 'ADO-CICD-RG'
+  subscription: 'Visual Studio Professional (b732bdf3-10bf-4ae2-8ffe-6ba5f2d77711)'
+  webappname: 'FMG-app09'
+
+stages:
+  - stage: Build
+    displayName: Build Stage
+    jobs: 
+    - job: Build
+      displayName: Build
+      pool:
+        vmImage: $(vmImageName)
+      
+      steps:
+        - task: AzureCLI@1
+          displayName: 'Azure CLI'
+          inputs:
+            azureSubscription: $(subscription)
+            scriptLocation: inlineScript
+            inlineScript: 'az group create --location eastus --name $(demoRG)'
+        
+        - task: AzureResourceGroupDeployment@2
+          displayName: 'Azure Deployment: create or update RG on $(demoRG)'
+          inputs:
+            azureSubscription: $(subscription)
+            resourceGroupName: '$(demoRG)'
+            location: 'east us'
+            templateLocation: 'Linked artifact'
+            csmFile: 'iac/webapp.json'
+            csmParametersFile: 'iac/webapp.parameters.json'
+            deploymentMode: Incremental
+        
+        - task: NodeTool@0
+          inputs:
+            versionSpec: '10.x'
+          displayName: 'Install Node.js'
+        
+        - script: |
+            npm install
+            npm run build --if-present
+          displayName: 'NPM install, Build and Test'
+        
+        - task: CopyFiles@2
+          displayName: 'copy files to destination'
+          inputs:
+            SourceFolder: '$(system.defaultworkingdirectory)'
+            TargetFolder: '$(Build.ArtifactStagingDirectory)/$(webappname)'
+        
+        - task: ArchiveFiles@2
+          displayName: 'Archive'
+          inputs:
+            rootFolderOrFile: '$(Build.ArtifactStagingDirectory)/$(webappname)'
+            includeRootFolder: false
+            archiveType: 'zip'
+            archiveFile: '$(Build.ArtifactStagingDirectory)/$(webappname).zip'
+            replaceExistingArchive: true
+        
+        - task: PublishPipelineArtifact@0
+          displayName: 'publishArtifact to Drop'
+          inputs:
+            targetPath: '$(Build.ArtifactStagingDirectory)/$(webappname).zip'
+        
+  - stage: Dev
+    displayName: Dev Stage
+    dependsOn: Build
+    condition: succeeded('Build')
+    jobs:
+      - deployment: Dev
+        displayName: Dev
+        environment: 'Development'
+        pool:
+          vmImage: $(vmImageName)
+        strategy:
+         runOnce:
+           deploy:
+             steps:
+               - task: DownloadPipelineArtifact@1
+                 displayName: 'Download Pipeline Artifacts'
+                 inputs:
+                   buildType: 'current'
+               
+               - task: AzureWebApp@1
+                 inputs:
+                   azureSubscription: '$(subscription)'
+                   appType: 'webApp' 
+                   appName: '$(webappname)'
+                   package: '$(system.ArtifactsDirectory)/drop/$(webappname).zip'
+                   customWebConfig: '-Handler iisnode -NodeStartFile index.js -appType node'
+                   deploymentMethod: 'zipDeploy'
