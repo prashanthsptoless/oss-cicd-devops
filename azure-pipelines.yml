@@ -10,7 +10,7 @@ variables:
   vmImageName: 'ubuntu-latest'
   demoRG: 'ADO-CICD-RG'
   subscription: 'Visual Studio Professional (b732bdf3-10bf-4ae2-8ffe-6ba5f2d77711)'
-  webappname: 'FMG-app09'
+  webappname: 'melonbetawebapp'
 
 stages:
   - stage: Build
