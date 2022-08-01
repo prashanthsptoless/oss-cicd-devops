@@ -9,7 +9,7 @@ trigger:
 variables:
   vmImageName: 'ubuntu-latest'
   demoRG: 'ADO-CICD-RG'
-  subscription: 'Visual Studio Professional (b732bdf3-10bf-4ae2-8ffe-6ba5f2d77711)'
+  subscription: 'Visual Studio Professional Subscription (1a03097d-acea-4652-9359-ee20a58c6383)'
   webappname: 'melonbetawebapp'
 
 stages:
