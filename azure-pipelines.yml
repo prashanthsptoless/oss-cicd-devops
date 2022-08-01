@@ -97,3 +97,31 @@ stages:
                    package: '$(system.ArtifactsDirectory)/drop/$(webappname).zip'
                    customWebConfig: '-Handler iisnode -NodeStartFile index.js -appType node'
                    deploymentMethod: 'zipDeploy'
+  - stage: Prod
+    displayName: Prod Stage
+    dependsOn: Build
+    condition: succeeded('Build')
+    jobs:
+      - deployment: Prod
+        displayName: Prod
+        environment: 'Production'
+        pool:
+          vmImage: $(vmImageName)
+        strategy:
+         runOnce:
+           deploy:
+             steps:
+               - task: DownloadPipelineArtifact@1
+                 displayName: 'Download Pipeline Artifacts'
+                 inputs:
+                   buildType: 'current'
+               
+               - task: AzureWebApp@1
+                 inputs:
+                   azureSubscription: '$(subscription)'
+                   appType: 'webApp' 
+                   appName: '$(webappname)'
+                   package: '$(system.ArtifactsDirectory)/drop/$(webappname).zip'
+                   customWebConfig: '-Handler iisnode -NodeStartFile index.js -appType node'
+                   deploymentMethod: 'zipDeploy'
+
